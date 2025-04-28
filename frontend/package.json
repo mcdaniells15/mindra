@@ -1,0 +1,22 @@
+{
+    "name": "mindra-frontend",
+    "version": "1.0.0",
+    "description": "Frontend for the Mindra AI Tutor App",
+    "main": "src/main.js",
+    "scripts": {
+      "dev": "vite",
+      "build": "vite build",
+      "serve": "vite preview"
+    },
+    "keywords": [],
+    "author": "James Donkor",
+    "license": "ISC",
+    "dependencies": {
+      "axios": "^1.8.4",
+      "vue": "^3.4.0"
+    },
+    "devDependencies": {
+      "vite": "^5.0.0"
+    }
+  }
+  

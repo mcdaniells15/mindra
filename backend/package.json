@@ -1,0 +1,23 @@
+{
+    "name": "mindra-backend",
+    "version": "1.0.0",
+    "description": "Express backend for the Mindra AI tutor system",
+    "main": "server.js",
+    "scripts": {
+        "dev": "nodemon server.js",
+        "start": "node server.js"
+    },
+    "author": "James Donkor",
+    "license": "ISC",
+    "dependencies": {
+        "axios": "^1.8.4",
+        "cors": "^2.8.5",
+        "dotenv": "^16.5.0",
+        "express": "^4.21.2",
+        "pdf-lib": "^1.17.1",
+        "pg": "^8.15.1"
+    },
+    "devDependencies": {
+        "nodemon": "^3.1.9"
+    }
+}
