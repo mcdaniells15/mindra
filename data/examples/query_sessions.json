@@ -1,0 +1,31 @@
+[
+    {
+      "userId": "sample_user_1",
+      "question": "What is osmosis?",
+      "responses": {
+        "plain": "Osmosis is water moving through a membrane.",
+        "mid": "Osmosis refers to the diffusion of water across a semipermeable membrane.",
+        "deep": "Osmosis is the passive movement of water molecules from an area of low solute concentration to high, through a selectively permeable membrane."
+      },
+      "tokenized": {
+        "keyTerms": ["osmosis", "water", "membrane"],
+        "numberedSteps": [
+          "1. Water moves",
+          "2. Across membrane",
+          "3. Until balanced"
+        ],
+        "sections": [
+          {
+            "type": "definition",
+            "content": "Osmosis is water moving through a membrane."
+          }
+        ]
+      },
+      "metadata": {
+        "age": 18,
+        "educationLevel": "college"
+      },
+      "timestamp": "2025-04-22T12:00:00Z"
+    }
+  ]
+  
