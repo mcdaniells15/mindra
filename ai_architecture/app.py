@@ -43,10 +43,14 @@ def save_uploaded_file(uploaded_file):
 
 async def main():
     st.title("📚 Document Summarizer & Quiz Generator")
-    st.write("Upload a PDF or PowerPoint file to generate a summary, quiz questions, and practical explanations!")
+    st.write("Upload a PDF, PowerPoint, or Word document to generate a summary, quiz questions, and practical explanations!")
 
     # File upload section
-    uploaded_file = st.file_uploader("Choose a file", type=Config.ALLOWED_FILE_TYPES)
+    uploaded_file = st.file_uploader(
+        "Choose a file",
+        type=Config.ALLOWED_FILE_TYPES,
+        help="Supported formats: PDF (.pdf), PowerPoint (.ppt, .pptx), Word (.doc, .docx)"
+    )
     text_chunks = None
 
     if uploaded_file is not None:
@@ -97,15 +101,36 @@ async def main():
                                     num_questions,
                                     quiz_difficulty
                                 )
-                                formatted_quiz = format_quiz_for_display(quiz)
-                                st.write(formatted_quiz)
+                                st.session_state.quiz = quiz
+                                st.session_state.show_answers = [False] * len(quiz)
+                        
+                        if "quiz" in st.session_state:
+                            # Display each question in a card-like format
+                            for i, q in enumerate(st.session_state.quiz, 1):
+                                st.markdown("---")  # Separator between questions
+                                st.markdown(f"### Question {i}")
+                                st.markdown(f"**{q['question']}**")
                                 
-                                st.download_button(
-                                    label="Download Quiz",
-                                    data=formatted_quiz,
-                                    file_name="quiz.txt",
-                                    mime="text/plain"
-                                )
+                                # Display options
+                                for option in q['options']:
+                                    st.write(option)
+                                
+                                # Show answer and explanation
+                                if st.button(f"Show Answer for Question {i}", key=f"answer_{i}"):
+                                    st.session_state.show_answers[i-1] = not st.session_state.show_answers[i-1]
+                                
+                                if st.session_state.show_answers[i-1]:
+                                    st.success(f"Correct Answer: {q['correct_answer']}")
+                                    st.info(f"Explanation: {q['explanation']}")
+                            
+                            # Download button
+                            formatted_quiz = format_quiz_for_display(st.session_state.quiz)
+                            st.download_button(
+                                label="Download Quiz",
+                                data=formatted_quiz,
+                                file_name="quiz.txt",
+                                mime="text/plain"
+                            )
                     
                     # Practical Explanation tab
                     with tab3:

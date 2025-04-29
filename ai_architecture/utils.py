@@ -8,8 +8,8 @@ from langchain.text_splitter import RecursiveCharacterTextSplitter
 from config import Config
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
-from pptx import Presentation
 from docx import Document
+from pptx import Presentation
 
 # Load environment variables and configure Gemini API
 load_dotenv()
@@ -27,6 +27,18 @@ def extract_text_from_pdf(pdf_path: str) -> str:
         text += page.extract_text()
     return text
 
+def extract_text_from_word(doc_path: str) -> str:
+    """Extract text content from a Word document."""
+    doc = Document(doc_path)
+    text = ""
+    for paragraph in doc.paragraphs:
+        text += paragraph.text + "\n"
+    for table in doc.tables:
+        for row in table.rows:
+            for cell in row.cells:
+                text += cell.text + "\n"
+    return text
+
 def extract_text_from_powerpoint(pptx_path: str) -> str:
     """Extract text content from a PowerPoint file."""
     prs = Presentation(pptx_path)
@@ -36,22 +48,6 @@ def extract_text_from_powerpoint(pptx_path: str) -> str:
         for shape in slide.shapes:
             if hasattr(shape, "text"):
                 text += shape.text + "\n"
-    
-    return text
-
-def extract_text_from_word(doc_path: str) -> str:
-    """Extract text content from a Word document."""
-    doc = Document(doc_path)
-    text = ""
-    
-    for paragraph in doc.paragraphs:
-        text += paragraph.text + "\n"
-    
-    # Extract text from tables
-    for table in doc.tables:
-        for row in table.rows:
-            for cell in row.cells:
-                text += cell.text + "\n"
     
     return text
 
@@ -111,69 +107,60 @@ async def generate_quiz(text: str, num_questions: int = 5, difficulty: str = "in
     """Generate quiz questions based on the text and difficulty level."""
     difficulty_prompt = Config.get_difficulty_prompt(difficulty)
     
-    prompt = f"""Generate a {num_questions}-question multiple-choice quiz based on this text.
+    # Limit the text length to improve performance
+    text = text[:2000]  # Use first 2000 characters for quiz generation
+    
+    prompt = f"""Generate exactly {num_questions} multiple-choice questions based on this text.
     {difficulty_prompt}
     
-    For each question include:
-    1. A clear question
-    2. Four options labeled A) through D)
-    3. The correct answer letter
-    4. A brief explanation
+    For each question:
+    1. Make it clear and concise
+    2. Include 4 options (A-D)
+    3. Mark the correct answer
+    4. Add a brief explanation
 
-    Text to base the quiz on:
-    {text}
+    Text: {text}
 
-    Respond in this exact format:
-    [
-      {{
-        "question": "Write the question here?",
-        "options": [
-          "A) First option",
-          "B) Second option",
-          "C) Third option",
-          "D) Fourth option"
-        ],
+    Format each question like this:
+    {{
+        "question": "Question text?",
+        "options": ["A) Option 1", "B) Option 2", "C) Option 3", "D) Option 4"],
         "correct_answer": "A",
-        "explanation": "Explanation why this is correct"
-      }}
-    ]"""
+        "explanation": "Brief explanation"
+    }}
+
+    Return a list of {num_questions} questions in this exact format."""
 
     try:
         loop = asyncio.get_event_loop()
         response = await loop.run_in_executor(executor, model.generate_content, prompt)
         result = response.text.strip()
         
-        # Clean up response and ensure proper format
+        # Clean up response
         result = result.replace('```python', '').replace('```json', '').replace('```', '').strip()
         
-        if not (result.startswith('[') and result.endswith(']')):
-            raise ValueError("Response is not in the correct list format")
-
-        # Parse the response safely
+        # Parse the response
         try:
             questions = ast.literal_eval(result)
         except:
-            local_dict = {}
-            exec(f"quiz = {result}", {}, local_dict)
-            questions = local_dict['quiz']
+            # If parsing fails, try to extract questions manually
+            questions = []
+            parts = result.split('{')
+            for part in parts[1:]:  # Skip first empty part
+                try:
+                    question = ast.literal_eval('{' + part)
+                    if isinstance(question, dict) and all(key in question for key in ['question', 'options', 'correct_answer', 'explanation']):
+                        questions.append(question)
+                except:
+                    continue
+            
+            if not questions:
+                raise ValueError("Could not parse quiz questions")
         
-        # Validate response structure
-        if not isinstance(questions, list):
-            raise ValueError("Response is not a list")
-        
-        for q in questions:
-            if not isinstance(q, dict):
-                raise ValueError("Question is not a dictionary")
-            if not all(key in q for key in ['question', 'options', 'correct_answer', 'explanation']):
-                raise ValueError("Question missing required fields")
-            if not isinstance(q['options'], list) or len(q['options']) != 4:
-                raise ValueError("Question must have exactly 4 options")
-        
-        return questions
+        return questions[:num_questions]  # Ensure we return exactly the requested number
 
     except Exception as e:
         print(f"Quiz generation error: {str(e)}")
-        print(f"Raw response: {result}")
         return [{
             "question": "Failed to generate quiz questions",
             "options": [
@@ -202,7 +189,7 @@ def format_quiz_for_display(quiz_questions: List[Dict]) -> str:
         return f"Error formatting quiz: {str(e)}\nPlease try generating the quiz again."
 
 async def generate_practical_explanation(text: str, difficulty: str = "intermediate") -> str:
-    """Generate practical explanations and examples based on the document content and difficulty level."""
+    """Generate practical explanations and examples based on the document content."""
     difficulty_prompt = Config.get_difficulty_prompt(difficulty)
     
     prompt = f"""Please provide practical explanations and examples based on the following document content.
@@ -222,7 +209,7 @@ async def generate_practical_explanation(text: str, difficulty: str = "intermedi
     return response.text
 
 async def chat_with_document(text: str, question: str, difficulty: str = "intermediate") -> str:
-    """Generate a response to a question about the document content with appropriate difficulty level."""
+    """Generate a response to a question about the document content."""
     difficulty_prompt = Config.get_difficulty_prompt(difficulty)
     
     prompt = f"""You are a helpful assistant that answers questions about the following document content.
